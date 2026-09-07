@@ -38,112 +38,48 @@ Akuisisi data sensor adalah proses pengambilan besaran fisik dari lingkungan (su
 
 ## Percobaan
 - **[Percobaan 1A — Akuisisi Data Sensor DHT22]**
-
 ```cpp
-#define RELAYPIN 26
-const float suhuThreshold = 30.0;
+#include <DHT.h>
+#define DHTPIN 4
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
 ```
-- `RELAYPIN` — GPIO 26, pin yang mengendalikan modul relay (atau LED indikator).
-- `suhuThreshold` — konstanta ambang batas suhu (°C); dideklarasikan `const` karena nilainya tidak berubah selama program berjalan, hanya dijadikan acuan perbandingan.
-
-```cpp
-void setup() {
-  Serial.begin(115200);
-  dht.begin();
-  pinMode(RELAYPIN, OUTPUT);
-  digitalWrite(RELAYPIN, LOW);
-}
-```
-Selain inisialisasi serial dan sensor (sama seperti Percobaan 1A):
-- `pinMode(RELAYPIN, OUTPUT)` — menetapkan pin 26 sebagai output digital, karena ESP32 yang mengirim sinyal kendali ke relay/LED.
-- `digitalWrite(RELAYPIN, LOW)` — memastikan aktuator dalam kondisi **mati** saat sistem baru menyala, agar tidak ada beban yang aktif tanpa disengaja.
-
-```cpp
-float suhu = dht.readTemperature();
-
-if (isnan(suhu)) {
-  Serial.println("Gagal membaca data sensor!");
-} else {
-  ...
-  if (suhu > suhuThreshold) {
-    digitalWrite(RELAYPIN, HIGH);
-    Serial.println("Aktuator: ON");
-  } else {
-    digitalWrite(RELAYPIN, LOW);
-    Serial.println("Aktuator: OFF");
-  }
-}
-```
-```cpp
-#define RELAYPIN 26
-const float suhuThreshold = 30.0;
-```
-- `RELAYPIN` — GPIO 26, pin yang mengendalikan modul relay (atau LED indikator).
-- `suhuThreshold` — konstanta ambang batas suhu (°C); dideklarasikan `const` karena nilainya tidak berubah selama program berjalan, hanya dijadikan acuan perbandingan.
+- `#include <DHT.h>` — mengimpor pustaka untuk berkomunikasi dengan sensor DHT.
+- `DHTPIN` — GPIO 4, pin data tempat sensor DHT22 terpasang.
+- `DHTTYPE` — memberi tahu pustaka bahwa sensor yang dipakai adalah tipe DHT22 (bukan DHT11), karena keduanya punya karakteristik protokol yang sedikit berbeda.
+- `DHT dht(DHTPIN, DHTTYPE);` — membuat objek `dht` yang menyimpan konfigurasi pin dan tipe sensor, sehingga fungsi seperti `dht.readTemperature()` tahu harus membaca dari mana.
 
 ```cpp
 void setup() {
   Serial.begin(115200);
   dht.begin();
-  pinMode(RELAYPIN, OUTPUT);
-  digitalWrite(RELAYPIN, LOW);
+  Serial.println("Memulai akuisisi data sensor DHT22...");
 }
 ```
-Selain inisialisasi serial dan sensor (sama seperti Percobaan 1A):
-- `pinMode(RELAYPIN, OUTPUT)` — menetapkan pin 26 sebagai output digital, karena ESP32 yang mengirim sinyal kendali ke relay/LED.
-- `digitalWrite(RELAYPIN, LOW)` — memastikan aktuator dalam kondisi **mati** saat sistem baru menyala, agar tidak ada beban yang aktif tanpa disengaja.
+Dijalankan sekali saat ESP32 mulai/reset:
+- `Serial.begin(115200)` — mengaktifkan komunikasi serial pada baud rate 115200 agar hasil bisa dipantau di Serial Monitor.
+- `dht.begin()` — menginisialisasi sensor DHT22 (menyiapkan pin data untuk protokol komunikasinya).
+- `Serial.println(...)` — mencetak pesan status awal sebagai penanda program telah berjalan.
 
 ```cpp
+float kelembaban = dht.readHumidity();
 float suhu = dht.readTemperature();
+```
+Dijalankan berulang di dalam `loop()`. `dht.readHumidity()` dan `dht.readTemperature()` mengirim perintah baca ke sensor dan mengembalikan nilai `float`; jika komunikasi gagal, keduanya mengembalikan `NaN` (Not a Number).
 
-if (isnan(suhu)) {
-  Serial.println("Gagal membaca data sensor!");
+```cpp
+if (isnan(kelembaban) || isnan(suhu)) {
+  Serial.println("Gagal membaca data dari sensor DHT22!");
 } else {
-  ...
-  if (suhu > suhuThreshold) {
-    digitalWrite(RELAYPIN, HIGH);
-    Serial.println("Aktuator: ON");
-  } else {
-    digitalWrite(RELAYPIN, LOW);
-    Serial.println("Aktuator: OFF");
-  }
+  Serial.print("Suhu: "); ...
 }
 ```
-```cpp
-#define RELAYPIN 26
-const float suhuThreshold = 30.0;
-```
-- `RELAYPIN` — GPIO 26, pin yang mengendalikan modul relay (atau LED indikator).
-- `suhuThreshold` — konstanta ambang batas suhu (°C); dideklarasikan `const` karena nilainya tidak berubah selama program berjalan, hanya dijadikan acuan perbandingan.
+`isnan()` memeriksa apakah sebuah nilai bukan angka yang valid. Operator `||` (OR) berarti: jika **salah satu saja** dari `kelembaban` atau `suhu` gagal terbaca, program masuk ke cabang error dan tidak mencetak data yang tidak lengkap/tidak valid.
 
 ```cpp
-void setup() {
-  Serial.begin(115200);
-  dht.begin();
-  pinMode(RELAYPIN, OUTPUT);
-  digitalWrite(RELAYPIN, LOW);
-}
+delay(2000);
 ```
-Selain inisialisasi serial dan sensor (sama seperti Percobaan 1A):
-- `pinMode(RELAYPIN, OUTPUT)` — menetapkan pin 26 sebagai output digital, karena ESP32 yang mengirim sinyal kendali ke relay/LED.
-- `digitalWrite(RELAYPIN, LOW)` — memastikan aktuator dalam kondisi **mati** saat sistem baru menyala, agar tidak ada beban yang aktif tanpa disengaja.
-
-```cpp
-float suhu = dht.readTemperature();
-
-if (isnan(suhu)) {
-  Serial.println("Gagal membaca data sensor!");
-} else {
-  ...
-  if (suhu > suhuThreshold) {
-    digitalWrite(RELAYPIN, HIGH);
-    Serial.println("Aktuator: ON");
-  } else {
-    digitalWrite(RELAYPIN, LOW);
-    Serial.println("Aktuator: OFF");
-  }
-}
-```
+Memberi jeda 2 detik sebelum siklus `loop()` berikutnya dimulai.
 - **[Modifikasi program agar data suhu dan kelembaban dirata-ratakan dari 5 kali 
 pembacaan sebelum ditampilkan]**
 ```cpp
@@ -249,7 +185,8 @@ if (isnan(suhu)) {
   }
 }
 ```
-- **[Percobaan 2A — Kendali Aktuator Relay Berdasarkan Data Sensor]**
+- **[Modifikasi program agar menggunakan dua ambang batas (histerisis), misalnya aktuator 
+menyala pada suhu di atas 30°C dan baru mati pada suhu di bawah 28°C]**
 ```cpp
 const float BATAS_ATAS = 30.0;
 const float BATAS_BAWAH = 28.0;
