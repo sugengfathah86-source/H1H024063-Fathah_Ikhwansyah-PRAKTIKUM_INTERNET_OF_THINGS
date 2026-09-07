@@ -7,29 +7,6 @@
 
 Repositori ini berisi dokumentasi dan source code untuk Modul Praktikum IoT I: Sensor dan Aktuator, mencakup Percobaan 1A (Akuisisi Data Sensor DHT22) dan Percobaan 2A (Kendali Aktuator Relay Berdasarkan Data Sensor), beserta tugas tambahan pada masing-masing percobaan.
 
-## Struktur Repositori
-```
-Modul1 - Percobaan - Fathah Ikhwansyah - H1H024063/
-├── README.md                              <- (file ini) ringkasan & pertanyaan analisis
-├── assets/
-│   ├── skematik_rangkaian.png             <- diagram pengawatan keseluruhan
-│   ├── foto/                              <- [ISI SENDIRI] foto tugas pendahuluan & praktikum
-│   └── demo/                              <- [ISI SENDIRI] GIF/video demonstrasi
-├── Percobaan_1A_Akuisisi_Sensor/
-│   ├── modul1_akuisisi_sensor.ino
-│   ├── README.md                          <- penjelasan kode + jawaban pertanyaan 1.5.4
-│   ├── assets/flowchart_akuisisi.png
-│   └── tugas_tambahan_rata2/
-│       ├── modul1_akuisisi_sensor_rata2.ino
-│       └── README.md                      <- penjelasan modifikasi rata-rata 5 pembacaan
-└── Percobaan_2A_Kendali_Aktuator/
-    ├── modul1_kendali_aktuator.ino
-    ├── README.md                          <- penjelasan kode + jawaban pertanyaan 1.6.4
-    └── tugas_tambahan_histerisis/
-        ├── modul1_kendali_aktuator_histerisis.ino
-        └── README.md                      <- penjelasan modifikasi histerisis
-```
-
 ## Tujuan Praktikum
 1. Memahami konsep akuisisi data sensor pada perangkat IoT berbasis ESP32.
 2. Memahami konsep dasar kendali aktuator (relay, motor servo, buzzer) menggunakan ESP32.
