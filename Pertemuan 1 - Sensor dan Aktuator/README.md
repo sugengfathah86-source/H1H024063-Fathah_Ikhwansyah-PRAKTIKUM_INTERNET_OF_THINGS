@@ -41,3 +41,4 @@ Akuisisi data sensor adalah proses pengambilan besaran fisik dari lingkungan (su
 
 ## Dokumentasi Foto & Video
 <img width="2160" height="3840" alt="image" src="https://github.com/user-attachments/assets/0d45d3be-a6c0-47c8-b6a5-83c5e0572063" />
+<img width="2160" height="3840" alt="image" src="https://github.com/user-attachments/assets/2e968557-99a5-4d5e-81d4-5c7ace77b376" />
