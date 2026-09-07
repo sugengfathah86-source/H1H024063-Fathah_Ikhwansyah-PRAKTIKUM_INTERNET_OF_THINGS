@@ -38,7 +38,7 @@ Akuisisi data sensor adalah proses pengambilan besaran fisik dari lingkungan (su
 
 ## Percobaan
 - **[Percobaan 1A — Akuisisi Data Sensor DHT22]**
-  ```cpp
+```cpp
 const int JUMLAH_SAMPEL = 5;
 ```
 Konstanta baru yang menentukan berapa kali sensor dibaca sebelum satu nilai rata-rata dihasilkan. Dipisahkan sebagai konstanta agar mudah diubah (misalnya jadi 10 kali) tanpa mengedit logika program.
