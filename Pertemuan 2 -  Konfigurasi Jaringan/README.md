@@ -28,8 +28,8 @@ Tidak ada library eksternal tambahan (mis. dari Library Manager) yang digunakan 
 ```cpp
 #include <ESP8266WiFi.h>   // sesuai board kamu: ESP8266
 
-const char* sta_ssid     = "NAMA_WIFI_ANDA";     // ganti dengan SSID WiFi rumah
-const char* sta_password = "PASSWORD_WIFI_ANDA"; // ganti dengan password WiFi rumah
+const char* sta_ssid     = "UdinPetot";     // ganti dengan SSID WiFi rumah
+const char* sta_password = "Admin1234"; // ganti dengan password WiFi rumah
 
 // ==== Tambahan untuk fitur auto-reconnect ====
 unsigned long previousMillis = 0;          // menyimpan waktu pengecekan terakhir
