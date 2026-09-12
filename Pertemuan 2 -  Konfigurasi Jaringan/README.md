@@ -1,16 +1,29 @@
-# README — Modifikasi Program Percobaan 2A & 2B (Pertanyaan No. 4)
+# Pertemuan 2 — Konfigurasi Jaringan (WiFi Mode Station & Access Point)
 
-Board: ESP8266 (menggunakan `ESP8266WiFi.h`)
+**Mata Kuliah:** Praktikum Sistem Internet of Things (TK245005)
+**Board:** ESP8266 (`ESP8266WiFi.h`)
+**Praktikan:** Fathah Ikhwansyah / H1H024063
 
-Dokumen ini berisi jawaban untuk:
-- **Percobaan 2A** — modifikasi agar ESP8266 melakukan *reconnect* otomatis saat WiFi terputus
-- **Percobaan 2B** — modifikasi agar ESP8266 berjalan pada mode **AP+STA** (Access Point tetap aktif sekaligus tersambung ke WiFi rumah)
+## Deskripsi Singkat Percobaan
+
+Pertemuan ini membahas dua percobaan konfigurasi jaringan WiFi pada ESP8266:
+
+- **Percobaan 2A** — ESP8266 dikonfigurasi sebagai **Station (STA)**, menyambung ke jaringan WiFi yang sudah ada. Code final ditambahkan mekanisme *auto-reconnect* non-blocking, karena code dasar dari modul (`while (WiFi.status() != WL_CONNECTED)` tanpa timeout) akan macet total apabila SSID/password salah.
+- **Percobaan 2B** — ESP8266 dikonfigurasi sebagai **Access Point (AP)** mandiri dengan SSID `UdinPetot`. Code final dikembangkan menjadi mode **AP+STA**, sehingga ESP8266 tetap menyediakan AP sendiri sekaligus tersambung ke WiFi rumah — relevan untuk skenario provisioning perangkat IoT.
+
+## Library / Dependencies
+
+| Library | Fungsi |
+|---|---|
+| `ESP8266WiFi.h` | Bawaan Arduino core untuk ESP8266; menyediakan seluruh fungsi WiFi yang dipakai (`WiFi.mode()`, `WiFi.begin()`, `WiFi.softAP()`, `WiFi.status()`, dll). Tidak perlu diinstal terpisah — otomatis tersedia setelah board manager ESP8266 terpasang di Arduino IDE. |
+
+Tidak ada library eksternal tambahan (mis. dari Library Manager) yang digunakan pada kedua percobaan ini.
 
 ---
 
-## 1. Percobaan 2A — Auto-Reconnect (Mode Station)
+## Percobaan 2A — Mode Station (STA) dengan Auto-Reconnect
 
-### Kode program lengkap
+### Code final
 
 ```cpp
 #include <ESP8266WiFi.h>   // sesuai board kamu: ESP8266
@@ -75,37 +88,32 @@ void loop() {
 }
 ```
 
-### Penjelasan baris/bagian kode
+### Penjelasan fungsi
 
-| Kode | Penjelasan |
+| Fungsi | Penjelasan |
 |---|---|
-| `#include <ESP8266WiFi.h>` | Pustaka WiFi khusus board ESP8266 (pengganti `WiFi.h` pada ESP32). Fungsi seperti `WiFi.mode()`, `WiFi.begin()`, `WiFi.status()` tetap tersedia dengan nama yang sama. |
-| `unsigned long previousMillis = 0;` | Menyimpan waktu (ms) terakhir kali program melakukan pengecekan status WiFi. Pengganti `delay()` panjang agar program tidak berhenti total. |
-| `const long reconnectInterval = 5000;` | Interval pengecekan/reconnect: setiap 5000 ms (5 detik). |
-| `void connectWiFi() { ... }` | Fungsi terpisah yang membungkus proses koneksi awal (`WiFi.mode`, `WiFi.begin`, pengecekan status), sehingga bisa dipanggil ulang tanpa menduplikasi kode. |
-| `unsigned long startAttempt = millis();` + `while (... && millis() - startAttempt < 10000)` | Membatasi percobaan koneksi awal maksimal 10 detik, mencegah program macet selamanya (*infinite loop*) jika WiFi tidak tersedia. |
-| `if (WiFi.status() == WL_CONNECTED) { ... } else { ... }` (dalam `connectWiFi()`) | Setelah timeout, cek apakah berhasil terhubung: cetak IP/MAC/RSSI jika berhasil, atau pesan gagal jika tidak. |
-| `unsigned long currentMillis = millis();` (di `loop()`) | Mengambil waktu saat ini setiap kali `loop()` berjalan, untuk dibandingkan dengan `previousMillis`. |
-| `if (currentMillis - previousMillis >= reconnectInterval) { previousMillis = currentMillis; ... }` | Pola *non-blocking timer* — blok di dalamnya hanya dijalankan tiap 5 detik, menggantikan `delay(5000)` yang bersifat blocking. |
-| `if (WiFi.status() == WL_CONNECTED) { Serial.println("Status: Terhubung"); }` | Jika masih terhubung, cukup cetak status. |
-| `else { ...; WiFi.disconnect(); WiFi.begin(sta_ssid, sta_password); }` | Jika terputus, `WiFi.disconnect()` membersihkan koneksi lama, lalu `WiFi.begin()` dipanggil ulang — inti dari fitur auto-reconnect. |
+| `connectWiFi()` | Membungkus seluruh proses koneksi awal: mengatur mode STA, memulai `WiFi.begin()`, menunggu hingga terhubung (maksimal 10 detik), lalu mencetak hasilnya. Dipisah menjadi fungsi sendiri agar bisa dipanggil ulang tanpa duplikasi kode. |
+| `setup()` | Hanya memanggil `Serial.begin()` dan `connectWiFi()` sekali di awal program. |
+| `loop()` | Menjalankan pengecekan status koneksi secara berkala (non-blocking) dan memicu reconnect otomatis bila terputus. |
 
-**Mengapa `millis()`, bukan `delay()`?** `delay()` menghentikan seluruh program selama waktu tersebut. Dengan `millis()`, program tetap berjalan (non-blocking) sambil berkala memeriksa apakah sudah waktunya cek/reconnect WiFi.
+### Penjelasan percabangan (conditional)
+
+| Kondisi | Penjelasan |
+|---|---|
+| `while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 10000)` | Loop menunggu koneksi berhasil, tetapi dibatasi 10 detik — dua syarat harus sama-sama benar (`&&`) agar loop terus berjalan: belum terhubung **dan** belum melewati batas waktu. |
+| `if (WiFi.status() == WL_CONNECTED) { ... } else { ... }` (dalam `connectWiFi()`) | Menentukan pesan/data yang dicetak setelah proses tunggu selesai: berhasil (tampilkan IP/MAC/RSSI) atau gagal (pesan gagal). |
+| `if (currentMillis - previousMillis >= reconnectInterval) { ... }` | Percabangan berbasis waktu (non-blocking timer) — isi blok hanya dijalankan tiap 5 detik, menggantikan `delay(5000)` yang blocking. |
+| `if (WiFi.status() == WL_CONNECTED) { ... } else { WiFi.disconnect(); WiFi.begin(...); }` (dalam `loop()`) | Inti auto-reconnect: jika masih terhubung, tidak melakukan apa-apa selain mencetak status; jika terputus, memutus koneksi lama lalu mencoba menyambung ulang. |
 
 ---
 
-## 2. Percobaan 2B — Mode AP+STA
+## Percobaan 2B — Mode AP+STA
 
-### Kode program lengkap
+### Code final
 
 ```cpp
 #include <ESP8266WiFi.h>   // sesuai board kamu: ESP8266
-
-// --- Kredensial untuk mode Station (menyambung ke WiFi rumah/router) ---
-const char* sta_ssid     = "NAMA_WIFI_ANDA";     // ganti dengan SSID WiFi rumah
-const char* sta_password = "PASSWORD_WIFI_ANDA"; // ganti dengan password WiFi rumah
-
-// --- Kredensial untuk mode Access Point (sama seperti kode Percobaan 2B asli) ---
+// --- Kredensial untuk mode Access Point (sama seperti code Percobaan 2B asli) ---
 const char* ap_ssid     = "UdinPetot";
 const char* ap_password = "Admin1234"; // minimal 8 karakter
 
@@ -115,7 +123,7 @@ void setup() {
   // 1. Set mode gabungan: Access Point + Station berjalan bersamaan
   WiFi.mode(WIFI_AP_STA);
 
-  // 2. Aktifkan Access Point terlebih dahulu (persis seperti kode Percobaan 2B)
+  // 2. Aktifkan Access Point terlebih dahulu (persis seperti code Percobaan 2B)
   WiFi.softAP(ap_ssid, ap_password);
   Serial.println("Access Point aktif!");
   Serial.print("AP SSID       : ");
@@ -165,27 +173,55 @@ void loop() {
 }
 ```
 
-### Penjelasan baris/bagian kode
+### Penjelasan fungsi
 
-| Kode | Penjelasan |
+| Fungsi | Penjelasan |
 |---|---|
-| `const char* sta_ssid` / `sta_password` | Kredensial WiFi rumah/router untuk peran Station — **baru**, tidak ada di kode Percobaan 2B asli. |
-| `const char* ap_ssid = "UdinPetot";` / `ap_password` | Kredensial Access Point — **tetap sama** seperti kode asli, tidak diubah. |
-| `WiFi.mode(WIFI_AP_STA);` | **Perubahan utama** — kode asli memakai `WiFi.mode(WIFI_AP)` (hanya AP). Diganti `WIFI_AP_STA` agar kedua peran aktif bersamaan. |
-| `WiFi.softAP(ap_ssid, ap_password);` + cetak SSID/IP AP | **Tidak berubah** dari kode asli. |
-| `WiFi.begin(sta_ssid, sta_password);` | **Baris baru** — memulai koneksi Station ke WiFi rumah, berjalan berdampingan dengan AP yang sudah aktif. |
-| `unsigned long startAttempt = millis();` + `while (... && millis() - startAttempt < 10000)` | **Baru** — menunggu koneksi Station selesai, dengan batas waktu 10 detik agar tidak macet jika WiFi rumah tidak tersedia. AP tetap berjalan meski Station gagal. |
-| `if (WiFi.status() == WL_CONNECTED) { ... } else { ... }` (di `setup()`) | **Baru** — melaporkan hasil percobaan koneksi Station: berhasil (tampilkan IP) atau gagal (AP tetap aktif). |
-| `int jumlahClient = WiFi.softAPgetStationNum();` (di `loop()`) | **Tidak berubah** dari kode asli — tetap menghitung jumlah perangkat yang terhubung ke AP. |
-| `if (WiFi.status() == WL_CONNECTED) { ... } else { WiFi.begin(sta_ssid, sta_password); }` (di `loop()`) | **Baru** — memantau status Station; jika terputus, coba sambung ulang tanpa mematikan AP. |
+| `setup()` | Mengaktifkan mode `WIFI_AP_STA`, menyalakan Access Point (`softAP`), lalu memulai proses koneksi Station ke WiFi rumah dengan batas waktu tunggu 10 detik. |
+| `loop()` | Setiap 5 detik, mencetak jumlah client yang terhubung ke AP dan status koneksi Station; jika Station terputus, mencoba menyambung ulang tanpa mematikan AP. |
 
-**Ringkasan perubahan dari kode asli Percobaan 2B:**
+### Penjelasan percabangan (conditional)
+
+| Kondisi | Penjelasan |
+|---|---|
+| `while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 10000)` | Sama seperti Percobaan 2A — menunggu Station terhubung, dibatasi 10 detik agar AP tidak ikut macet jika Station gagal. |
+| `if (WiFi.status() == WL_CONNECTED) { ... } else { ... }` (di `setup()`) | Melaporkan hasil percobaan koneksi Station setelah proses tunggu: berhasil (tampilkan IP) atau gagal (AP tetap aktif, hanya Station yang tidak tersambung). |
+| `if (WiFi.status() == WL_CONNECTED) { ... } else { WiFi.begin(sta_ssid, sta_password); }` (di `loop()`) | Jika Station terhubung, hanya cetak status dan IP; jika terputus, coba sambung ulang tanpa mengganggu AP yang sedang berjalan. |
+
+### Ringkasan perubahan dari code Percobaan 2B asli
+
 - `WiFi.mode(WIFI_AP)` → `WiFi.mode(WIFI_AP_STA)`
 - Ditambahkan kredensial dan proses koneksi Station (`sta_ssid`, `sta_password`, `WiFi.begin()`, pengecekan status dengan timeout)
 - Di `loop()`, ditambahkan pemantauan status Station berdampingan dengan pemantauan jumlah client AP yang sudah ada sebelumnya
 
-**Mengapa mode ini berguna untuk provisioning?** Saat pertama kali dinyalakan (atau kredensial WiFi belum tersedia), ESP8266 tetap menyediakan AP sendiri (`UdinPetot`) agar pengguna bisa menyambung langsung dari smartphone dan membuka halaman konfigurasi. Bersamaan dengan itu, ESP8266 mencoba/menjaga koneksi ke WiFi utama untuk mengirim data — tanpa harus memilih salah satu peran saja.
+---
+
+## Jawaban Pertanyaan Praktikum (terkait code)
+
+**Apa fungsi `WiFi.mode(WIFI_STA)` / `WiFi.mode(WIFI_AP_STA)`?**
+Menentukan peran modul WiFi sebelum `WiFi.begin()`/`WiFi.softAP()` dipanggil. `WIFI_STA` mengaktifkan hanya peran klien (Station); `WIFI_AP_STA` mengaktifkan peran Access Point dan Station secara bersamaan, karena masing-masing mode mengarahkan driver WiFi menjalankan stack proses yang berbeda.
+
+**Apa yang terjadi jika SSID/password salah?**
+`WiFi.status()` tidak akan pernah bernilai `WL_CONNECTED`. Pada code dasar dari modul yang memakai `while (WiFi.status() != WL_CONNECTED)` tanpa batas waktu, program akan macet total (infinite loop) mencetak titik (".") terus-menerus. Karena itu code final di atas menambahkan timeout 10 detik pada proses tunggu.
+
+**Mengapa IP default Access Point 192.168.4.1?**
+Nilai bawaan dari SDK Espressif untuk mode soft-AP, menggunakan subnet privat 192.168.4.0/24 — dipilih berbeda dari rentang default router rumah (192.168.0.x/192.168.1.x) agar tidak bentrok saat mode AP+STA aktif bersamaan.
+
+**Perbedaan mendasar STA vs AP?**
+STA: ESP8266 sebagai klien yang menyambung ke jaringan yang sudah ada, mendapat IP dari DHCP router. AP: ESP8266 sebagai penyedia jaringan sendiri, menjalankan DHCP server internal untuk klien yang terhubung ke SSID `UdinPetot`.
+
+**Risiko jika password AP kosong/terlalu sederhana?**
+Siapa pun dalam jangkauan sinyal bisa terhubung tanpa otorisasi dan berpotensi mengakses halaman konfigurasi ESP8266, rentan brute-force, serta rawan sniffing/manipulasi data pada jaringan AP. Disarankan password acak minimal 8–12 karakter kombinasi huruf/angka/simbol.
 
 ---
 
-> **Catatan untuk kedua file:** ganti nilai `sta_ssid` dan `sta_password` sesuai jaringan WiFi rumah/hotspot yang kamu gunakan saat praktikum, sebelum di-upload ke board.
+## Skematik / Diagram Rangkaian
+
+Kedua percobaan hanya menggunakan board ESP8266 yang tersambung ke komputer melalui kabel USB (tanpa komponen tambahan seperti LED indikator). Tidak ada rangkaian eksternal yang perlu digambar.
+
+## Dokumentasi
+<img width="2160" height="3840" alt="image" src="https://github.com/user-attachments/assets/a0cc30d8-ee19-454a-aaeb-4c0ee331c004" />
+
+- **GIF/video demonstrasi Serial Monitor:** _(tempel/lampirkan tautan video atau GIF hasil Serial Monitor saat program berjalan di sini)_
+
+> Catatan: ganti nilai `sta_ssid` dan `sta_password` pada kedua file kode sesuai jaringan WiFi rumah/hotspot yang digunakan saat praktikum, sebelum di-upload ke board.
