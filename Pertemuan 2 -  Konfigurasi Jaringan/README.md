@@ -217,11 +217,7 @@ Siapa pun dalam jangkauan sinyal bisa terhubung tanpa otorisasi dan berpotensi m
 
 ## Skematik / Diagram Rangkaian
 
-Kedua percobaan hanya menggunakan board ESP8266 yang tersambung ke komputer melalui kabel USB (tanpa komponen tambahan seperti LED indikator). Tidak ada rangkaian eksternal yang perlu digambar.
-
 ## Dokumentasi
 <img width="2160" height="3840" alt="image" src="https://github.com/user-attachments/assets/a0cc30d8-ee19-454a-aaeb-4c0ee331c004" />
 
 https://github.com/user-attachments/assets/5acbc9da-6176-4d4e-ad6c-0f29d47954ad
-
-> Catatan: ganti nilai `sta_ssid` dan `sta_password` pada kedua file kode sesuai jaringan WiFi rumah/hotspot yang digunakan saat praktikum, sebelum di-upload ke board.
