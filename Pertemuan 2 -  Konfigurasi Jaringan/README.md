@@ -197,7 +197,9 @@ void loop() {
 ---
 
 ## Skematik / Diagram Rangkaian
-+---------------------------+
+
+```text
+                  +---------------------------+
                   |                           |
                   |         ESP32 DevKit      |
                   |                           |
