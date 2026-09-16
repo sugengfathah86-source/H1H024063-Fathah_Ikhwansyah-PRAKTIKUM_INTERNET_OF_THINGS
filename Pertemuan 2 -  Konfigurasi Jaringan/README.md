@@ -219,6 +219,7 @@ void loop() {
                  +-----> (Katoda)     |
                  |                    |
                  +--------------------+
+```
 ## Dokumentasi
 <img width="2160" height="3840" alt="image" src="https://github.com/user-attachments/assets/a0cc30d8-ee19-454a-aaeb-4c0ee331c004" />
 
