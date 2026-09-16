@@ -21,7 +21,7 @@ Tidak ada library eksternal tambahan (mis. dari Library Manager) yang digunakan 
 
 ---
 
-## Percobaan 2A — Mode Station (STA) dengan Auto-Reconnect
+##  Modifikasi Percobaan 2A — Mode Station (STA) dengan Auto-Reconnect
 
 ### Code final
 
@@ -107,7 +107,7 @@ void loop() {
 
 ---
 
-## Percobaan 2B — Mode AP+STA
+## Modifikasi Percobaan 2B — Mode AP+STA
 
 ### Code final
 
@@ -196,27 +196,27 @@ void loop() {
 
 ---
 
-## Jawaban Pertanyaan Praktikum (terkait code)
-
-**Apa fungsi `WiFi.mode(WIFI_STA)` / `WiFi.mode(WIFI_AP_STA)`?**
-Menentukan peran modul WiFi sebelum `WiFi.begin()`/`WiFi.softAP()` dipanggil. `WIFI_STA` mengaktifkan hanya peran klien (Station); `WIFI_AP_STA` mengaktifkan peran Access Point dan Station secara bersamaan, karena masing-masing mode mengarahkan driver WiFi menjalankan stack proses yang berbeda.
-
-**Apa yang terjadi jika SSID/password salah?**
-`WiFi.status()` tidak akan pernah bernilai `WL_CONNECTED`. Pada code dasar dari modul yang memakai `while (WiFi.status() != WL_CONNECTED)` tanpa batas waktu, program akan macet total (infinite loop) mencetak titik (".") terus-menerus. Karena itu code final di atas menambahkan timeout 10 detik pada proses tunggu.
-
-**Mengapa IP default Access Point 192.168.4.1?**
-Nilai bawaan dari SDK Espressif untuk mode soft-AP, menggunakan subnet privat 192.168.4.0/24 — dipilih berbeda dari rentang default router rumah (192.168.0.x/192.168.1.x) agar tidak bentrok saat mode AP+STA aktif bersamaan.
-
-**Perbedaan mendasar STA vs AP?**
-STA: ESP8266 sebagai klien yang menyambung ke jaringan yang sudah ada, mendapat IP dari DHCP router. AP: ESP8266 sebagai penyedia jaringan sendiri, menjalankan DHCP server internal untuk klien yang terhubung ke SSID `UdinPetot`.
-
-**Risiko jika password AP kosong/terlalu sederhana?**
-Siapa pun dalam jangkauan sinyal bisa terhubung tanpa otorisasi dan berpotensi mengakses halaman konfigurasi ESP8266, rentan brute-force, serta rawan sniffing/manipulasi data pada jaringan AP. Disarankan password acak minimal 8–12 karakter kombinasi huruf/angka/simbol.
-
----
-
 ## Skematik / Diagram Rangkaian
-
++---------------------------+
+                  |                           |
+                  |         ESP32 DevKit      |
+                  |                           |
+                  +-------+-----------+-------+
+                          |           |
+                       (GPIO 2)     (GND)
+                          |           |
+                          |           |
+                          |           |
+                 +--------+           |
+                 |                    |
+                 |                    |
+                 +-----> (Anoda)      |
+                          +---+       |
+                          |LED|       |
+                          +---+       |
+                 +-----> (Katoda)     |
+                 |                    |
+                 +--------------------+
 ## Dokumentasi
 <img width="2160" height="3840" alt="image" src="https://github.com/user-attachments/assets/a0cc30d8-ee19-454a-aaeb-4c0ee331c004" />
 
