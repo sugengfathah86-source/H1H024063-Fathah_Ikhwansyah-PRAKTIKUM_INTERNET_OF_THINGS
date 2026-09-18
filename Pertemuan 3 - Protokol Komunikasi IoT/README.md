@@ -45,7 +45,77 @@ ESP8266 DevKit ---(WiFi)--- Internet ---(TCP:1883)--- broker.hivemq.com (3B)
 Karena endpoint tujuan (`httpbin.org`) menggunakan **HTTPS**, program juga
 memanfaatkan `WiFiClientSecure` sebagai client koneksi terenkripsi.
 
-### 3.2 Penjelasan Code Secara Detail
+### 3.2 Kode Lengkap Program (`code/Percobaan_3A_HTTP.ino`)
+```cpp
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <ArduinoJson.h>
+
+const char* ssid = "UdinPetot";
+const char* password = "Admin1234";
+
+const char* serverUrl = "https://httpbin.org/post";
+
+void setup() {
+  Serial.begin(115200);
+
+  WiFi.begin(ssid, password);
+
+  Serial.print("Menghubungkan ke WiFi");
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("WiFi berhasil terhubung!");
+}
+
+void loop() {
+  if (WiFi.status() == WL_CONNECTED) {
+
+    WiFiClientSecure client;
+    client.setInsecure();
+
+    HTTPClient http;
+
+    http.begin(client, serverUrl);
+    http.addHeader("Content-Type", "application/json");
+
+    // Membuat objek data sensor dalam format JSON
+    JsonDocument doc;
+    doc["suhu"] = 28.5;
+    doc["kelembaban"] = 65.0;
+
+    String requestBody;
+    serializeJson(doc, requestBody);
+
+    Serial.print("Mengirim data: ");
+    Serial.println(requestBody);
+
+    // Mengirim data melalui HTTP POST
+    int httpResponseCode = http.POST(requestBody);
+
+    if (httpResponseCode > 0) {
+      Serial.print("Kode Response HTTP: ");
+      Serial.println(httpResponseCode);
+
+      Serial.println("Isi Response:");
+      Serial.println(http.getString());
+    } else {
+      Serial.print("Pengiriman gagal, kode error: ");
+      Serial.println(httpResponseCode);
+    }
+
+    http.end();
+  }
+
+  delay(10000);
+}
+```
+
+### 3.3 Penjelasan Code Secara Detail
 
 **`setup()`**
 - `Serial.begin(115200)` — mengaktifkan komunikasi serial dengan baud rate 115200 agar
@@ -80,7 +150,7 @@ memanfaatkan `WiFiClientSecure` sebagai client koneksi terenkripsi.
 - `http.end();` — menutup koneksi HTTP untuk membebaskan resource.
 - `delay(10000);` — menjeda program 10 detik sebelum data sensor berikutnya dikirim.
 
-### 3.3 Jawaban Pertanyaan Praktikum Terkait Code
+### 3.4 Jawaban Pertanyaan Praktikum Terkait Code
 1. **Diagram alur** proses HTTP POST: Mulai → Setup WiFi → Cek status WiFi → Buat objek
    JSON → Serialize ke String → `http.begin` + `addHeader` → `http.POST()` → Cek
    response code (`>0` → tampilkan code & body; `≤0` → tampilkan pesan gagal) →
@@ -91,13 +161,116 @@ memanfaatkan `WiFiClientSecure` sebagai client koneksi terenkripsi.
 3. **Kode response 200** berarti *OK* — request berhasil diproses dan server
    mengembalikan data sesuai permintaan. Contoh lain: **404 Not Found**, artinya
    endpoint/URL yang dituju tidak ditemukan di server.
-4. **Modifikasi penambahan waktu (`millis()`)** — ditambahkan satu baris:
+4. **Modifikasi penambahan waktu (`millis()`)** — ESP32/ESP8266 dimodifikasi agar
+   mengirimkan data tambahan berupa waktu (dalam milidetik sejak dinyalakan) ke dalam
+   JSON yang dikirim. Perubahan hanya **satu baris**, ditambahkan di dalam `loop()`,
+   setelah `doc["kelembaban"]` dan sebelum `serializeJson()`:
    ```cpp
-   doc["waktu_ms"] = millis(); // waktu sejak ESP8266 dinyalakan (ms)
+   doc["waktu_ms"] = millis();   // <-- MODIFIKASI: waktu sejak ESP8266 dinyalakan (ms)
    ```
-   diletakkan setelah `doc["kelembaban"]` dan sebelum `serializeJson()`, sehingga field
-   `waktu_ms` ikut terbawa saat objek JSON diserialisasi menjadi `requestBody`. Hasil
-   JSON menjadi: `{"suhu":28.5,"kelembaban":65.0,"waktu_ms":123456}`.
+   Karena `serializeJson()` dipanggil setelah baris ini, field `waktu_ms` otomatis ikut
+   terbawa ke dalam `requestBody` yang dikirim ke server. Tidak ada baris lain yang perlu
+   diubah, karena proses pengiriman (`http.POST`) dan pembacaan response tetap
+   menggunakan variabel `requestBody` yang sama seperti sebelumnya.
+
+   **Kode lengkap setelah modifikasi (`code/Percobaan_3A_HTTP_modifikasi.ino`):**
+   ```cpp
+   #include <ESP8266WiFi.h>
+   #include <ESP8266HTTPClient.h>
+   #include <ArduinoJson.h>
+
+   const char* ssid = "UdinPetot";
+   const char* password = "Admin1234";
+
+   const char* serverUrl = "https://httpbin.org/post";
+
+   void setup() {
+     Serial.begin(115200);
+
+     WiFi.begin(ssid, password);
+
+     Serial.print("Menghubungkan ke WiFi");
+
+     while (WiFi.status() != WL_CONNECTED) {
+       delay(500);
+       Serial.print(".");
+     }
+
+     Serial.println();
+     Serial.println("WiFi berhasil terhubung!");
+   }
+
+   void loop() {
+     if (WiFi.status() == WL_CONNECTED) {
+
+       WiFiClientSecure client;
+       client.setInsecure();
+
+       HTTPClient http;
+
+       http.begin(client, serverUrl);
+       http.addHeader("Content-Type", "application/json");
+
+       // Membuat objek data sensor dalam format JSON
+       JsonDocument doc;
+       doc["suhu"] = 28.5;
+       doc["kelembaban"] = 65.0;
+       doc["waktu_ms"] = millis();   // <-- MODIFIKASI: waktu sejak ESP8266 dinyalakan (ms)
+
+       String requestBody;
+       serializeJson(doc, requestBody);
+
+       Serial.print("Mengirim data: ");
+       Serial.println(requestBody);
+
+       // Mengirim data melalui HTTP POST
+       int httpResponseCode = http.POST(requestBody);
+
+       if (httpResponseCode > 0) {
+         Serial.print("Kode Response HTTP: ");
+         Serial.println(httpResponseCode);
+
+         Serial.println("Isi Response:");
+         Serial.println(http.getString());
+       } else {
+         Serial.print("Pengiriman gagal, kode error: ");
+         Serial.println(httpResponseCode);
+       }
+
+       http.end();
+     }
+
+     delay(10000);
+   }
+   ```
+
+   **Penjelasan baris demi baris (khusus bagian yang relevan dengan modifikasi):**
+
+   | Baris | Penjelasan |
+   |---|---|
+   | `JsonDocument doc;` | Membuat objek JSON kosong yang akan diisi data sensor. |
+   | `doc["suhu"] = 28.5;` | Menambahkan pasangan key-value `suhu` bertipe desimal ke objek JSON. |
+   | `doc["kelembaban"] = 65.0;` | Menambahkan pasangan key-value `kelembaban` bertipe desimal ke objek JSON. |
+   | `doc["waktu_ms"] = millis();` | **(Baris baru)** Menambahkan pasangan key-value `waktu_ms` ke objek JSON. Value-nya diambil dari fungsi bawaan Arduino `millis()`, yaitu jumlah milidetik sejak ESP8266 terakhir kali di-*reset*/dinyalakan (bertipe `unsigned long`). Baris ini harus diletakkan **sebelum** `serializeJson()` dipanggil, karena `serializeJson()` hanya mengubah data yang sudah ada di dalam `doc` pada saat itu menjadi teks. |
+   | `serializeJson(doc, requestBody);` | Mengubah seluruh isi `doc` (termasuk field `waktu_ms` yang baru) menjadi String yang siap dikirim sebagai body HTTP POST. |
+   | `http.POST(requestBody);` | Mengirim `requestBody` (yang sekarang sudah berisi tiga field) ke server melalui HTTP POST — tidak perlu diubah karena `requestBody` sudah otomatis membawa field baru. |
+
+   **Contoh hasil JSON yang dikirim:**
+
+   Sebelum modifikasi:
+   ```json
+   {"suhu":28.5,"kelembaban":65.0}
+   ```
+   Sesudah modifikasi:
+   ```json
+   {"suhu":28.5,"kelembaban":65.0,"waktu_ms":123456}
+   ```
+
+   **Catatan tambahan:** `millis()` menghasilkan waktu berjalan (uptime) perangkat,
+   bukan waktu nyata (real time/tanggal-jam). Nilainya akan kembali ke 0 setelah kurang
+   lebih 49,7 hari (overflow), namun untuk kebutuhan praktikum ini (pengiriman tiap 10
+   detik) hal tersebut tidak berpengaruh. Jika dibutuhkan waktu nyata, diperlukan
+   tambahan library NTP (misalnya `time.h` dengan `configTime()`).
 
 ---
 
@@ -110,7 +283,80 @@ memanfaatkan `WiFiClientSecure` sebagai client koneksi terenkripsi.
 | `PubSubClient.h` (by Nick O'Leary) | Implementasi protokol MQTT (connect, publish, loop) |
 | `ArduinoJson.h` | Membuat dan mengubah data sensor menjadi format JSON |
 
-### 4.2 Penjelasan Code Secara Detail
+### 4.2 Kode Lengkap Program (`code/Percobaan_3B_MQTT.ino`)
+```cpp
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+
+const char* ssid = "UdinPetot";
+const char* password = "Admin1234";
+
+const char* mqttServer = "broker.hivemq.com";
+const int mqttPort = 1883;
+const char* mqttTopic = "unsoed/tk245004/kelompokfathahnabil/sensor"; // ganti dengan topic unik kelompokmu
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void hubungkanWiFi() {
+  WiFi.begin(ssid, password);
+  Serial.print("Menghubungkan ke WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi berhasil terhubung!");
+}
+
+void hubungkanMQTT() {
+  while (!client.connected()) {
+    Serial.print("Menghubungkan ke broker MQTT...");
+    String clientId = "ESP8266Client-" + String(random(0xffff), HEX);
+
+    if (client.connect(clientId.c_str())) {
+      Serial.println("berhasil terhubung!");
+    } else {
+      Serial.print("gagal, rc=");
+      Serial.print(client.state());
+      Serial.println(" coba lagi dalam 2 detik");
+      delay(2000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  hubungkanWiFi();
+  client.setServer(mqttServer, mqttPort);
+}
+
+void loop() {
+  if (!client.connected()) {
+    hubungkanMQTT();
+  }
+  client.loop();
+
+  // Membuat data sensor dalam format JSON
+  JsonDocument doc;
+  doc["suhu"] = 28.5;
+  doc["kelembaban"] = 65.0;
+
+  char buffer[128];
+  serializeJson(doc, buffer);
+
+  // Mempublikasikan data ke topic MQTT
+  client.publish(mqttTopic, buffer);
+  Serial.print("Data terkirim ke topic ");
+  Serial.print(mqttTopic);
+  Serial.print(": ");
+  Serial.println(buffer);
+
+  delay(5000); // publish data setiap 5 detik
+}
+```
+
+### 4.3 Penjelasan Code Secara Detail
 
 **Variabel global**
 - `mqttServer = "broker.hivemq.com"`, `mqttPort = 1883` — alamat dan port broker MQTT
@@ -153,7 +399,7 @@ memanfaatkan `WiFiClientSecure` sebagai client koneksi terenkripsi.
   MQTT yang telah ditentukan.
 - `delay(5000);` — menjeda 5 detik sebelum publish data berikutnya.
 
-### 4.3 Jawaban Pertanyaan Praktikum Terkait Code
+### 4.4 Jawaban Pertanyaan Praktikum Terkait Code
 1. **Fungsi topic & alasan harus unik** — topic adalah "alamat"/kanal pengelompokan
    data pada broker; subscriber hanya menerima data dari topic yang di-subscribe. Topic
    dibuat unik (menyertakan nama kelompok) agar data tidak tercampur dengan kelompok
@@ -185,4 +431,3 @@ manusia maupun mesin. Format key-value ini didukung oleh hampir semua bahasa
 pemrograman dan platform (web, mobile, cloud, database), sehingga data dari perangkat
 IoT yang berbeda dapat saling dipertukarkan dan diproses oleh berbagai sistem tanpa
 konversi format yang rumit — mendukung interoperabilitas antar platform.
-
