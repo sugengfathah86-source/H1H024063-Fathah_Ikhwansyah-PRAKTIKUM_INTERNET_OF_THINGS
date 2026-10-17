@@ -73,36 +73,269 @@ String(perintah) == "ON" ? HIGH : LOW : Sebuah Ternary Operator (percabangan If-
 A. Modifikasi Intensitas LED (PWM) - Modul 4A
 Tugas: Menambahkan nilai intensitas dari pesan JSON untuk kecerahan LED menggunakan PWM.
 ```
-// Penambahan pada blok fungsi callback()
-const char* perintah = doc["perintah"];
-int intensitas = doc["intensitas"]; // Mengambil data angka intensitas (contoh JSON: {"perintah":"ON", "intensitas":200})
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
 
-if (String(perintah) == "ON") {
-  analogWrite(ledPin, intensitas); // Memberikan sinyal PWM sesuai angka JSON (0-255)
-  Serial.println("Aktuator LED: ON Menyala Redup/Terang");
-} else if (String(perintah) == "OFF") {
-  analogWrite(ledPin, 0);          // Mematikan LED (PWM 0)
+const char* ssid         = "UdinPetot";
+const char* password     = "Admin1234";
+const char* mqttServer   = "broker.hivemq.com";
+const int   mqttPort     = 1883;
+
+const char* topicPerintah = "unsoed/tk245004/kelompokfathahnabil/perintah";
+const int ledPin          = D6; // GPIO 12 (D6 pada NodeMCU ESP8266)
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// Fungsi callback dipanggil otomatis setiap ada pesan baru masuk
+void callback(char* topic, byte* payload, unsigned int length) {
+  String pesan;
+
+  for (unsigned int i = 0; i < length; i++) {
+    pesan += (char)payload[i];
+  }
+
+  Serial.print("Pesan diterima [");
+  Serial.print(topic);
+  Serial.print("]: ");
+  Serial.println(pesan);
+
+  JsonDocument doc;
+
+  DeserializationError error = deserializeJson(doc, pesan);
+
+  if (error) {
+    Serial.print("Gagal parsing JSON: ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  if (!doc["perintah"].is<const char*>()) {
+    Serial.println("Format JSON tidak sesuai: key 'perintah' tidak ditemukan");
+    return;
+  }
+
+  const char* perintah = doc["perintah"];
+
+  // === MODIFIKASI: ambil nilai "intensitas" (0-255) dengan fallback 255 ===
+  // Operator "|" pada ArduinoJson berarti: pakai nilai dari JSON jika ada,
+  // atau pakai nilai default (255 = terang penuh) jika key "intensitas" tidak dikirim.
+  // Ini menjaga kompatibilitas dengan pesan lama yang hanya berisi {"perintah": "..."}.
+  int intensitas = doc["intensitas"] | 255;
+
+  // Batasi (clamp) nilai agar selalu berada pada rentang valid 0-255,
+  // supaya nilai yang salah/ekstrem dari client tidak merusak PWM.
+  if (intensitas < 0)   intensitas = 0;
+  if (intensitas > 255) intensitas = 255;
+
+  if (strcmp(perintah, "ON") == 0) {
+    // MODIFIKASI: analogWrite menggantikan digitalWrite agar kecerahan
+    // LED bisa diatur bertingkat (PWM), bukan hanya ON/OFF biner.
+    analogWrite(ledPin, intensitas);
+    Serial.print("Aktuator: ON, intensitas=");
+    Serial.println(intensitas);
+  }
+  else if (strcmp(perintah, "OFF") == 0) {
+    // OFF tetap berarti LED mati total, terlepas dari nilai intensitas yang dikirim.
+    analogWrite(ledPin, 0);
+    Serial.println("Aktuator: OFF");
+  }
+  else {
+    Serial.print("Perintah tidak dikenal: ");
+    Serial.println(perintah);
+  }
 }
+
+
+void hubungkanWiFi() {
+  WiFi.begin(ssid, password);
+  Serial.print("Menghubungkan ke WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi berhasil terhubung!");
+}
+
+void hubungkanMQTT() {
+  while (!client.connected()) {
+    Serial.print("Menghubungkan ke broker MQTT...");
+    String clientId = "ESP8266Client-" + String(random(0xffff), HEX);
+
+    if (client.connect(clientId.c_str())) {
+      Serial.println("berhasil terhubung!");
+      client.subscribe(topicPerintah); // subscribe setelah berhasil terhubung
+      Serial.print("Subscribe ke topic: ");
+      Serial.println(topicPerintah);
+    } else {
+      Serial.print("gagal, rc=");
+      Serial.print(client.state());
+      Serial.println(" coba lagi dalam 2 detik");
+      delay(2000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(ledPin, OUTPUT);
+
+  // MODIFIKASI: samakan rentang PWM ESP8266 (default 0-1023) menjadi 0-255
+  // agar nilai "intensitas" dari JSON (0-255) bisa dipakai langsung tanpa konversi.
+  analogWriteRange(255);
+  analogWrite(ledPin, 0);
+
+  hubungkanWiFi();
+  client.setServer(mqttServer, mqttPort);
+  client.setCallback(callback); // daftarkan fungsi callback
+}
+
+void loop() {
+  if (!client.connected()) {
+    hubungkanMQTT();
+  }
+  client.loop(); // memproses pesan MQTT masuk secara terus-menerus
+}
+
 ```
 B. Modifikasi Kendali Aktuator Ganda (Buzzer) - Modul 4B
 Tugas: Menambahkan topik perintah baru untuk aktuator kedua dan memisahkan alur logika.
 ```
-// 1. Deklarasi di bagian awal
-const char* topicPerintah = "unsoed/tk245004/kelompokfathahnabil/perintah"; 
-const char* topicBuzzer   = "unsoed/tk245004/kelompokfathahnabil/buzzer"; 
-const int buzzerPin = D7; // Deklarasi pin baru untuk aktuator buzzer
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+#include <DHT.h>
 
-// 2. Modifikasi di fungsi hubungkanMQTT()
-client.subscribe(topicPerintah);
-client.subscribe(topicBuzzer); // Daftar mendengarkan topik kedua
+const char* ssid          = "UdinPetot";
+const char* password      = "Admin1234";
+const char* mqttServer    = "broker.hivemq.com";
+const int   mqttPort      = 1883;
 
-// 3. Percabangan Topik di fungsi callback()
-if (String(topic) == topicPerintah) {
-  digitalWrite(ledPin, String(perintah) == "ON" ? HIGH : LOW);
-  Serial.println("Perintah LED diterima dan dieksekusi!");
-} 
-else if (String(topic) == topicBuzzer) {
-  digitalWrite(buzzerPin, String(perintah) == "ON" ? HIGH : LOW);
-  Serial.println("Perintah Buzzer diterima dan dieksekusi!");
+const char* topicData     = "unsoed/tk245004/kelompokfathahnabil/data";
+const char* topicPerintah = "unsoed/tk245004/kelompokfathahnabil/perintah";
+// MODIFIKASI: topic baru khusus untuk mengendalikan aktuator kedua (buzzer)
+const char* topicBuzzer   = "unsoed/tk245004/kelompokfathahnabil/perintah_buzzer";
+
+#define DHTPIN 4          // Pin D2 pada NodeMCU ESP8266 (GPIO 4)
+#define DHTTYPE DHT11     // Sensor DHT11
+
+const int ledPin    = D6;  // Pin D6 pada NodeMCU ESP8266 (GPIO 12) - LED
+const int buzzerPin  = D7; // MODIFIKASI: Pin D7 pada NodeMCU ESP8266 (GPIO 13) - Buzzer
+
+DHT dht(DHTPIN, DHTTYPE);
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+unsigned long waktuTerakhirPublish = 0;
+const long intervalPublish = 5000;
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String pesan;
+  for (unsigned int i = 0; i < length; i++) {
+    pesan += (char)payload[i];
+  }
+
+  JsonDocument doc;
+  if (deserializeJson(doc, pesan)) return;
+
+  const char* perintah = doc["perintah"];
+  bool nyala = (String(perintah) == "ON");
+
+  // MODIFIKASI: bandingkan parameter "topic" (bukan hanya isi pesannya) untuk
+  // menentukan aktuator mana yang dituju oleh perintah yang baru diterima.
+  if (strcmp(topic, topicPerintah) == 0) {
+    digitalWrite(ledPin, nyala ? HIGH : LOW);
+    Serial.print("Perintah diterima [LED] -> Aktuator: ");
+    Serial.println(perintah);
+  }
+  else if (strcmp(topic, topicBuzzer) == 0) {
+    digitalWrite(buzzerPin, nyala ? HIGH : LOW);
+    Serial.print("Perintah diterima [BUZZER] -> Aktuator: ");
+    Serial.println(perintah);
+  }
 }
+
+void hubungkanWiFi() {
+  WiFi.begin(ssid, password);
+  Serial.print("Menghubungkan ke WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi berhasil terhubung!");
+}
+
+void hubungkanMQTT() {
+  while (!client.connected()) {
+    Serial.print("Menghubungkan ke broker MQTT...");
+    String clientId = "ESP8266Client-" + String(random(0xffff), HEX);
+
+    if (client.connect(clientId.c_str())) {
+      client.subscribe(topicPerintah);
+      // MODIFIKASI: subscribe topic kedua agar perintah buzzer juga diterima
+      client.subscribe(topicBuzzer);
+      Serial.println("Terhubung dan subscribe topic perintah & perintah_buzzer");
+    } else {
+      Serial.print("gagal, rc=");
+      Serial.print(client.state());
+      Serial.println(" coba lagi dalam 2 detik");
+      delay(2000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(ledPin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT); // MODIFIKASI: inisialisasi pin buzzer sebagai output
+  digitalWrite(ledPin, LOW);
+  digitalWrite(buzzerPin, LOW);
+
+  dht.begin();
+  delay(2000); // Memberikan jeda 2 detik agar sensor DHT siap
+
+  hubungkanWiFi();
+  client.setServer(mqttServer, mqttPort);
+  client.setCallback(callback);
+}
+
+void loop() {
+  if (!client.connected()) {
+    hubungkanMQTT();
+  }
+  client.loop();
+
+  if (millis() - waktuTerakhirPublish > intervalPublish) {
+    waktuTerakhirPublish = millis();
+
+    // Membaca suhu dari sensor DHT11
+    float suhu = dht.readTemperature();
+
+    // Jika masih gagal (NaN), coba baca lagi sekali lagi
+    if (isnan(suhu)) {
+      delay(100);
+      suhu = dht.readTemperature();
+    }
+
+    if (!isnan(suhu)) {
+      JsonDocument doc;
+      doc["suhu"] = suhu;
+
+      char buffer[128];
+      serializeJson(doc, buffer);
+
+      client.publish(topicData, buffer);
+      Serial.print("Data terkirim: ");
+      Serial.println(buffer);
+    } else {
+      Serial.println("Gagal membaca dari sensor DHT!");
+    }
+  }
+}
+
 ```
+## 💻 Dokumentasi
+<img width="2160" height="3840" alt="image" src="https://github.com/user-attachments/assets/b5ec55f5-2f88-4053-b889-08237ee32127" />
+<img width="2160" height="3840" alt="image" src="https://github.com/user-attachments/assets/126305d6-4421-4312-a99d-36cb16f0be76" />
+
