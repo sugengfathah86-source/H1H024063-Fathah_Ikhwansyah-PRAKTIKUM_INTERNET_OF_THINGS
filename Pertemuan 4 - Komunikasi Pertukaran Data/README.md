@@ -24,8 +24,6 @@ Dikarenakan ada penyesuaian penggunaan mikrokontroler dari ESP32 menjadi NodeMCU
 * **Sensor Suhu (DHT11):** Pin Data (OUT) terhubung ke pin **D2 / GPIO 4** ESP8266.
 * **Aktuator (LED):** Anoda (Kaki Panjang) terhubung melalui resistor 220 Ohm ke pin **D6 / GPIO 12** ESP8266. Katoda (Kaki Pendek) ke pin **GND**.
 
-*(Catatan untuk Praktikan: Ubah teks di bawah ini dengan gambar/foto asli rangkaian Anda)*
-`![Foto Rangkaian Praktikum](link_foto_rangkaian_anda_disini.jpg)`
 
 ---
 
